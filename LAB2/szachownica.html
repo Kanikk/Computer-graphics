@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Szachownica - Canvas</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #e6e6e6;
+            font-family: sans-serif;
+        }
+
+        #canvas {
+            border: 2px solid #222;
+            background: #fff;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas">Twoja przegladarka nie obsluguje canvas.</canvas>
+
+    <script>
+        "use strict";
+
+        const BOARD_SIZE = 10;
+        const CELL_SIZE = 70;
+
+        let canvas;
+        let ctx;
+
+        function draw() {
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const isDark = (row + col) % 2 === 1;
+                    ctx.fillStyle = isDark ? "#2c2c2c" : "#f2f2f2";
+                    ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                }
+            }
+        }
+
+        function init() {
+            canvas = document.querySelector("#canvas");
+            ctx = canvas.getContext("2d");
+
+            const boardPixels = BOARD_SIZE * CELL_SIZE;
+            canvas.width = boardPixels;
+            canvas.height = boardPixels;
+
+            draw();
+        }
+
+        window.addEventListener("load", init);
+    </script>
+</body>
+
+</html>

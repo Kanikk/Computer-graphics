@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink" width="800px" height="820px" viewBox="0 0 800 820" preserveAspectRatio="xMidYMid">
+
+  <rect width="800" height="820" fill="white"/>
+
+  <defs>
+    <!-- Ośmiokąt z 8 szprychami i czerwonym centrum -->
+    <g id="wheel">
+      <polygon points="0,-45 32,-32 45,0 32,32 0,45 -32,32 -45,0 -32,-32" fill="white" stroke="black" stroke-width="2.5"/>
+      <line x1="0" y1="0" x2="0" y2="-45" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="32" y2="-32" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="45" y2="0" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="32" y2="32" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="0" y2="45" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="-32" y2="32" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="-45" y2="0" stroke="black" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="-32" y2="-32" stroke="black" stroke-width="1.5"/>
+
+    </g>
+  </defs>
+
+  <!-- ================================================================
+       SCENA 1: górna lewa
+       Pivot: (220, 175)
+       Belka rotate(-20°)
+       Trójkąt FIOLETOWY: podstawa na dole (y=0), wierzchołek w dół
+       → odwrócony: podstawa u góry przy środku belki, wierzchołek w dół
+       ================================================================ -->
+  <g transform="translate(220, 175)">
+    <!-- Belka z kołami na wierzchu trójkąta -->
+    <g transform="rotate(20)">
+      <rect x="-160" y="-14" width="320" height="18" fill="red"/>
+      <!-- Lewe koło -->
+      <g transform="translate(-160, 0)">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite" additive="sum"/>
+        <use xlink:href="#wheel"/>
+      </g>
+      <!-- Prawe koło -->
+      <g transform="translate(160, 0)">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite" additive="sum"/>
+        <use xlink:href="#wheel"/>
+      </g>
+    </g>
+    <!-- Trójkąt fioletowy: środek u góry (0,0), wierzchołek wskazuje w DÓŁ -->
+    <!-- podstawa: od (-38, 14) do (38, 14), wierzchołek: (0, 110) -->
+    <polygon points="-38,110 38,110 0,0" fill="purple"/>
+  </g>
+
+  <!-- ================================================================
+       SCENA 2: górna prawa
+       Pivot: (580, 155)
+       Belka rotate(20°)
+       Trójkąt ZIELONY: odwrócony, wierzchołek w dół
+       ================================================================ -->
+  <g transform="translate(580, 155)">
+    <g transform="rotate(20)">
+      <rect x="-150" y="-14" width="300" height="18" fill="red"/>
+      <!-- Lewe koło -->
+      <g transform="translate(-150, 0)">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3s" repeatCount="indefinite" additive="sum"/>
+        <use xlink:href="#wheel"/>
+      </g>
+      <!-- Prawe koło -->
+      <g transform="translate(150, 0)">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3s" repeatCount="indefinite" additive="sum"/>
+        <use xlink:href="#wheel"/>
+      </g>
+    </g>
+
+    <!-- Trójkąt zielony -->
+    <polygon points="-32,100 32,100 0,0" fill="green"/>
+
+  </g>
+
+  <!-- ================================================================
+       SCENA 3: dolna środkowa
+       Pivot: (390, 340)
+       Belka rotate(25°)
+       Trójkąt NIEBIESKI: większy, wierzchołek w dół
+       ================================================================ -->
+  <g transform="translate(390, 440)">
+    <g transform="rotate(25)">
+      <rect x="-160" y="-14" width="320" height="18" fill="red"/>
+      <!-- Lewe koło -->
+      <g transform="translate(-160, 0)">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="5s" repeatCount="indefinite" additive="sum"/>
+        <use xlink:href="#wheel"/>
+      </g>
+      <!-- Prawe koło -->
+      <g transform="translate(160, 0)">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="5s" repeatCount="indefinite" additive="sum"/>
+        <use xlink:href="#wheel"/>
+      </g>
+    </g>
+    <!-- Trójkąt niebieski – większy -->
+    <polygon points="-42,140 42,140 0,0" fill="blue"/>
+  </g>
+
+</svg>

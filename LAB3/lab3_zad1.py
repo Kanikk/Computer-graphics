@@ -77,7 +77,6 @@ def make_regular_polygon(n, radius):
 BASE_POLYGON = make_regular_polygon(N, RADIUS)
 
 
-# 1-9 jako gotowe warianty wygladu, analogicznie do siatki z instrukcji
 TRANSFORMS = {
     pygame.K_1: scale(0.35, 0.35),
     pygame.K_2: mat_mul(rotation(-44), scale(0.62, 0.62)),

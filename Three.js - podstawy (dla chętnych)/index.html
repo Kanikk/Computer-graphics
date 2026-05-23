@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Wieza Hanoi</title>
+  <style>
+    body { margin: 0; background: white; }
+  </style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 4.5, 19);
+camera.lookAt(0, 2.5, 0);
+
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const swiatlo = new THREE.DirectionalLight(0xffffff, 0.6);
+swiatlo.position.set(5, 10, 5);
+scene.add(swiatlo);
+
+const podstawa = new THREE.Mesh(
+  new THREE.BoxGeometry(20, 0.65, 4.5),
+  new THREE.MeshLambertMaterial({ color: 0xbb7722 })
+);
+podstawa.position.y = -0.325;
+scene.add(podstawa);
+
+const pozycjeSłupkow = [-6, 0, 6];
+
+for (let i = 0; i < 3; i++) {
+  const slupek = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13, 0.13, 5.5, 24),
+    new THREE.MeshLambertMaterial({ color: 0xddaa66 })
+  );
+  slupek.position.set(pozycjeSłupkow[i], 2.75, 0);
+  scene.add(slupek);
+}
+
+function zrobEtykiete(numer) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#cc0000';
+  ctx.font = 'bold 54px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(numer, 32, 32);
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true })
+  );
+  sprite.scale.set(1, 1, 1);
+  return sprite;
+}
+
+for (let i = 0; i < 3; i++) {
+  const etykieta = zrobEtykiete(String(i));
+  etykieta.position.set(pozycjeSłupkow[i], 7.1, 0);
+  scene.add(etykieta);
+}
+
+const kolory = [0xffee00, 0x2266ff, 0x22aa00, 0xee2200];
+const promienie = [0.85, 1.45, 2.05, 2.65];
+const wysokoscKlocka = 0.55;
+
+const klocki = [];
+for (let i = 0; i < 4; i++) {
+  const klocek = new THREE.Mesh(
+    new THREE.CylinderGeometry(promienie[i], promienie[i], wysokoscKlocka, 32),
+    new THREE.MeshLambertMaterial({ color: kolory[i] })
+  );
+  scene.add(klocek);
+  klocki.push(klocek);
+}
+
+function getPozycjeY(numerMiejscaWStosie) {
+  return numerMiejscaWStosie * wysokoscKlocka + wysokoscKlocka / 2;
+}
+
+const stosy = [[3, 2, 1, 0], [], []];
+
+function ustawKlocki() {
+  for (let p = 0; p < 3; p++) {
+    for (let s = 0; s < stosy[p].length; s++) {
+      const id = stosy[p][s];
+      klocki[id].position.set(pozycjeSłupkow[p], getPozycjeY(s), 0);
+    }
+  }
+}
+
+ustawKlocki();
+
+const ruchy = [];
+
+function hanoi(n, skad, dokad, pomocniczy) {
+  if (n == 0) return;
+  hanoi(n - 1, skad, pomocniczy, dokad);
+  ruchy.push([skad, dokad]);
+  hanoi(n - 1, pomocniczy, dokad, skad);
+}
+
+hanoi(4, 0, 2, 1);
+
+let aktualnyRuch = 0;
+let faza = 'pauza';
+let czasFazy = 0;
+let aktywnyKlocek = -1;
+let stosSkad = -1;
+let stosDokad = -1;
+let startX, startY, endX, endY;
+const wysokoscLotu = 8.0;
+
+let ostatniCzas = Date.now();
+
+function animuj() {
+  requestAnimationFrame(animuj);
+
+  const teraz = Date.now();
+  const dt = (teraz - ostatniCzas) / 1000;
+  ostatniCzas = teraz;
+
+  if (faza == 'pauza') {
+    czasFazy += dt;
+    if (czasFazy > 0.3) {
+      if (aktualnyRuch >= ruchy.length) {
+        faza = 'koniec';
+      } else {
+        const ruch = ruchy[aktualnyRuch];
+        aktualnyRuch++;
+        stosSkad = ruch[0];
+        stosDokad = ruch[1];
+        aktywnyKlocek = stosy[stosSkad][stosy[stosSkad].length - 1];
+        startX = pozycjeSłupkow[stosSkad];
+        startY = getPozycjeY(stosy[stosSkad].length - 1);
+        endX = pozycjeSłupkow[stosDokad];
+        endY = getPozycjeY(stosy[stosDokad].length);
+        faza = 'unoszenie';
+        czasFazy = 0;
+      }
+    }
+  } else if (faza == 'unoszenie') {
+    czasFazy += dt;
+    const postep = Math.min(czasFazy / 0.4, 1);
+    klocki[aktywnyKlocek].position.set(startX, startY + (wysokoscLotu - startY) * postep, 0);
+    if (postep >= 1) {
+      faza = 'przesuwanie';
+      czasFazy = 0;
+    }
+  } else if (faza == 'przesuwanie') {
+    czasFazy += dt;
+    const postep = Math.min(czasFazy / 0.55, 1);
+    klocki[aktywnyKlocek].position.set(startX + (endX - startX) * postep, wysokoscLotu, 0);
+    if (postep >= 1) {
+      faza = 'opuszczanie';
+      czasFazy = 0;
+    }
+  } else if (faza == 'opuszczanie') {
+    czasFazy += dt;
+    const postep = Math.min(czasFazy / 0.4, 1);
+    klocki[aktywnyKlocek].position.set(endX, wysokoscLotu + (endY - wysokoscLotu) * postep, 0);
+    if (postep >= 1) {
+      stosy[stosDokad].push(stosy[stosSkad].pop());
+      klocki[aktywnyKlocek].position.set(endX, endY, 0);
+      faza = 'pauza';
+      czasFazy = 0;
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+animuj();
+
+</script>
+</body>
+</html>

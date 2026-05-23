@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>CS 424 Lab 9</title>
+    <script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/examples/jsm/controls/OrbitControls.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+    }
+}
+</script>
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+        "use strict";
+
+        var canvas, renderer, scene, camera;
+
+        var controls;
+
+        var animating = false;
+        var frameNumber = 0;
+
+        var carousel, earthMesh;
+        var horseMeshes = [];
+
+        const N_SIDES = 8;
+        const MORPH_FRAMES = 15;
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+
+        function parseHorseJSON(json) {
+            const { vertices: verts, faces, uvs: uvLayers = [], scale = 1, morphTargets = [] } = json;
+            const positions = [];
+            const uvCoords = [];
+            const morphPositions = morphTargets.map(() => []);
+
+            const addVert = (vidx, uvi) => {
+                positions.push(verts[vidx * 3] / scale, verts[vidx * 3 + 1] / scale, verts[vidx * 3 + 2] / scale);
+                if (uvi !== undefined && uvLayers[0]) {
+                    uvCoords.push(uvLayers[0][uvi * 2], uvLayers[0][uvi * 2 + 1]);
+                }
+                morphTargets.forEach((mt, mi) => {
+                    morphPositions[mi].push(
+                        mt.vertices[vidx * 3] / scale,
+                        mt.vertices[vidx * 3 + 1] / scale,
+                        mt.vertices[vidx * 3 + 2] / scale
+                    );
+                });
+            };
+
+            let i = 0;
+            while (i < faces.length) {
+                const type = faces[i++];
+                const isQuad = !!(type & 1);
+                const hasMat = !!(type & 2);
+                const hasFaceUv = !!(type & 4);
+                const hasVtxUv = !!(type & 8);
+                const hasFaceNrm = !!(type & 16);
+                const hasVtxNrm = !!(type & 32);
+                const hasFaceCol = !!(type & 64);
+                const hasVtxCol = !!(type & 128);
+                const count = isQuad ? 4 : 3;
+
+                const vi = [];
+                for (let j = 0; j < count; j++) vi.push(faces[i++]);
+
+                if (hasMat) i++;
+                if (hasFaceUv) i += uvLayers.length;
+
+                const uvIdxs = [];
+                if (hasVtxUv) {
+                    for (let layer = 0; layer < uvLayers.length; layer++) {
+                        const row = [];
+                        for (let j = 0; j < count; j++) row.push(faces[i++]);
+                        uvIdxs.push(row);
+                    }
+                }
+
+                if (hasFaceNrm) i++;
+                if (hasVtxNrm) i += count;
+                if (hasFaceCol) i++;
+                if (hasVtxCol) i += count;
+
+                const useUv = hasVtxUv && uvIdxs.length > 0;
+                const tris = isQuad ? [[0, 1, 2], [0, 2, 3]] : [[0, 1, 2]];
+                for (const [a, b, c] of tris) {
+                    for (const idx of [a, b, c]) {
+                        addVert(vi[idx], useUv ? uvIdxs[0][idx] : undefined);
+                    }
+                }
+            }
+
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            if (uvCoords.length > 0) {
+                geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvCoords, 2));
+            }
+            geom.computeVertexNormals();
+            geom.morphAttributes.position = morphPositions.map(
+                mp => new THREE.Float32BufferAttribute(mp, 3)
+            );
+            return geom;
+        }
+
+
+
+        async function createWorld() {
+            renderer.setClearColor(0xffffff);
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(30, canvas.width / canvas.height, 0.1, 200);
+            camera.position.set(0, 10, 36);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            sunLight.position.set(6, 12, 8);
+            scene.add(sunLight);
+
+            var light;
+            light = new THREE.DirectionalLight(0xffffff, 0.3);
+            light.position.set(0, 0, 1);
+            camera.add(light);
+            scene.add(camera);
+
+            const horseData = await fetch('resources/horse.js').then(r => r.json());
+            const horseGeom = parseHorseJSON(horseData);
+
+            const texLoader = new THREE.TextureLoader();
+            const earthTex = texLoader.load('resources/earth.jpg');
+
+            carousel = new THREE.Group();
+            scene.add(carousel);
+
+            const RADIUS = 5.0;
+            const POLE_H = 6.0;
+
+            const poleMat = new THREE.MeshPhongMaterial({ color: 0xddaa22, specular: 0xffffff, shininess: 90 });
+            const platMat = new THREE.MeshPhongMaterial({ color: 0x7700bb, shininess: 40 });
+
+            carousel.add(new THREE.Mesh(
+                new THREE.CylinderGeometry(RADIUS, RADIUS, 0.35, N_SIDES),
+                platMat
+            ));
+
+            const top = new THREE.Mesh(
+                new THREE.ConeGeometry(RADIUS, 2, N_SIDES),
+                new THREE.MeshPhongMaterial({ color: 0x5500aa, shininess: 30 })
+            );
+            top.position.y = 7.0;
+            carousel.add(top);
+
+            const HORSE_SCALE = 0.01;
+            const HORSE_R = RADIUS * 0.72;
+            const HORSE_Y = 1.6;
+            const horseColors = [
+                0xffffff, 0x44ee44, 0x8b4513, 0x4488ff,
+                0xddddcc, 0x228b22, 0xcc7733, 0x3355cc
+            ];
+
+            for (let k = 0; k < N_SIDES; k++) {
+                const angle = ((k + 0.5) / N_SIDES) * Math.PI * 2;
+                const hx = Math.cos(angle) * HORSE_R * (-1);
+                const hz = Math.sin(angle) * HORSE_R * (-1);
+
+                const hPole = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.07, 0.07, POLE_H, 8),
+                    poleMat
+                );
+                hPole.position.set(hx, POLE_H / 2, hz);
+                carousel.add(hPole);
+
+                const mat = new THREE.MeshPhongMaterial({
+                    color: horseColors[k],
+                    specular: 0x333333,
+                    shininess: 15,
+                    flatShading: true,
+                });
+                const mesh = new THREE.Mesh(horseGeom, mat);
+                mesh.scale.setScalar(HORSE_SCALE);
+                mesh.position.set(hx, HORSE_Y, hz);
+                mesh.rotation.y = Math.PI - angle;
+                carousel.add(mesh);
+                horseMeshes.push(mesh);
+            }
+
+            earthMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(3, 48, 24),
+                new THREE.MeshPhongMaterial({ map: earthTex, specular: 0x111111, shininess: 25 })
+            );
+            earthMesh.position.y = 3.2;
+            scene.add(earthMesh);
+
+        }
+
+        function updateForFrame() {
+
+            carousel.rotation.y -= 0.008;
+            earthMesh.rotation.y += 0.003;
+
+            const SPEED = 6;
+            const base = frameNumber / SPEED;
+
+            horseMeshes.forEach((horse, k) => {
+                const inf = horse.morphTargetInfluences;
+                if (!inf) return;
+                const phaseOffset = (k / horseMeshes.length) * MORPH_FRAMES;
+                const t = (base + phaseOffset) % MORPH_FRAMES;
+                const frameA = Math.floor(t) % MORPH_FRAMES;
+                const frameB = (frameA + 1) % MORPH_FRAMES;
+                const blend = t - Math.floor(t);
+                for (let j = 0; j < MORPH_FRAMES; j++) inf[j] = 0;
+                inf[frameA] = 1 - blend;
+                inf[frameB] = blend;
+            });
+
+        }
+
+        function installOrbitControls() {
+            controls = new OrbitControls(camera, canvas);
+            controls.enablePan = false;
+            controls.enableZoom = false;
+            controls.enableDamping = false;
+            function move() {
+                controls.update();
+                if (!animating) {
+                    render();
+                }
+            }
+            function down() {
+                document.addEventListener("mousemove", move, false);
+            }
+            function up() {
+                document.removeEventListener("mousemove", move, false);
+            }
+            function touch(event) {
+                if (event.touches.length == 1) {
+                    move();
+                }
+            }
+            canvas.addEventListener("mousedown", down, false);
+            canvas.addEventListener("mouseup", up, false);
+            canvas.addEventListener("touchmove", touch, false);
+        }
+
+        function doAnimateCheckbox() {
+            var run = document.getElementById("animateCheckbox").checked;
+            if (run != animating) {
+                animating = run;
+                if (animating) {
+                    requestAnimationFrame(doFrame);
+                }
+            }
+        }
+
+        function doFrame() {
+            if (animating) {
+                frameNumber++;
+                updateForFrame();
+                render();
+                requestAnimationFrame(doFrame);
+            }
+        }
+
+        async function init() {
+            try {
+                canvas = document.getElementById("glcanvas");
+                renderer = new THREE.WebGLRenderer({
+                    canvas: canvas,
+                    antialias: true,
+                    alpha: false
+                });
+            }
+            catch (e) {
+                document.getElementById("message").innerHTML = "<b>Sorry, an error occurred:<br>" +
+                    e + "</b>";
+                return;
+            }
+            document.getElementById("animateCheckbox").checked = false;
+            document.getElementById("animateCheckbox").onchange = doAnimateCheckbox;
+            await createWorld();
+            installOrbitControls();
+            render();
+        }
+
+        window.init = init;
+
+    </script>
+</head>
+
+<body onload="init()">
+
+    <h2>Three.js Modeling Demo: Merry-Go-Round</h2>
+
+    <noscript>
+        <p style="color: #AA0000; font-weight: bold">Sorry, but this page requires JavaScript!</p>
+    </noscript>
+
+    <p style="color:#AA0000; font-weight: bold" id="message">
+    </p>
+
+    <p>
+        <label><input type="checkbox" id="animateCheckbox"><b>Animate</b></label>
+        <b style="margin-left:50px">Use the mouse to rotate the model.</b>
+    </p>
+
+    <div id="canvas-holder" style="float:left; border: thin solid black; background-color: white">
+        <canvas width=1200 height=600 id="glcanvas"></canvas>
+    </div>
+
+</body>
+
+</html>

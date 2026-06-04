@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Raymarching - Operacje CSG (koło + prostokąt)</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: monospace;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #controls {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 14px;
+      z-index: 10;
+    }
+
+    #controls button {
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-radius: 7px;
+      background: rgba(0, 0, 0, 0.6);
+      color: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    #controls button:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: #fff;
+      color: #fff;
+    }
+
+    #controls button.aktywny {
+      background: rgba(255, 200, 50, 0.22);
+      border-color: #ffc332;
+      color: #ffc332;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="controls">
+    <button id="btn-0" class="aktywny" onclick="ustawOperacje(0, this)">Suma</button>
+    <button id="btn-1" onclick="ustawOperacje(1, this)">Przecięcie</button>
+    <button id="btn-2" onclick="ustawOperacje(2, this)">Różnica</button>
+  </div>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+  }
+}
+</script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const scena = new THREE.Scene();
+    const kamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    const vertexShader = `
+void main() {
+  gl_Position = vec4(position, 1.0);
+}
+`;
+
+    const fragmentShader = `
+uniform vec2  u_resolution;
+uniform float u_time;
+uniform int   u_operation;
+
+#define MAX_STEPS 100
+#define MAX_DIST  50.0
+#define SURF_DIST 0.001
+
+float sdSphere(vec3 p, float r) {
+  return length(p) - r;
+}
+
+float sdBox(vec3 p, vec3 b) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+vec2 obrot2D(vec2 v, float kat) {
+  float c = cos(kat);
+  float s = sin(kat);
+  return vec2(c * v.x - s * v.y,
+              s * v.x + c * v.y);
+}
+
+float scene(vec3 p) {
+  float tx   = 0.48 * sin(u_time * 1.1);
+  float ty   = 0.24 * sin(u_time * 2.2);
+  float kolo = sdSphere(p - vec3(tx, ty, 0.0), 0.30);
+
+  float kat    = u_time * 0.75;
+  float skala  = 1.0 + 0.35 * sin(u_time * 1.4);
+  vec2  pOb    = obrot2D(p.xy, kat);
+  float prosto = sdBox(vec3(pOb, p.z), vec3(0.36 * skala, 0.19 / skala, 0.36));
+
+  if (u_operation == 0) return min(kolo, prosto);
+  if (u_operation == 1) return max(kolo, prosto);
+  return max(kolo, -prosto);
+}
+
+float rayMarch(vec3 ro, vec3 rd) {
+  float d = 0.0;
+  for (int i = 0; i < MAX_STEPS; i++) {
+    vec3  p = ro + rd * d;
+    float h = scene(p);
+    if (h < SURF_DIST) break;
+    if (d > MAX_DIST)  break;
+    d += h;
+  }
+  return d;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / u_resolution.y;
+
+  vec3 ro = vec3(0.0, 0.0, 3.0);
+  vec3 rd = normalize(vec3(uv, -2.0));
+
+  float d = rayMarch(ro, rd);
+
+  vec3 kolor = vec3(0.06, 0.07, 0.15);
+
+  if (d < MAX_DIST) {
+    float t = 0.5 + 0.5 * sin(u_time * 0.9);
+    kolor = mix(vec3(0.95, 0.38, 0.08), vec3(0.15, 0.75, 0.92), t);
+  }
+
+  kolor = pow(kolor, vec3(0.4545));
+  gl_FragColor = vec4(kolor, 1.0);
+}
+`;
+
+    const geometria = new THREE.PlaneGeometry(2, 2);
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        u_time: { value: 0.0 },
+        u_operation: { value: 0 }
+      }
+    });
+
+    scena.add(new THREE.Mesh(geometria, material));
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      material.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+    });
+
+    const zegar = new THREE.Clock();
+    function animuj() {
+      requestAnimationFrame(animuj);
+      material.uniforms.u_time.value = zegar.getElapsedTime();
+      renderer.render(scena, kamera);
+    }
+    animuj();
+
+    window.ustawOperacje = function (numer, btn) {
+      material.uniforms.u_operation.value = numer;
+      document.querySelectorAll('#controls button')
+        .forEach(b => b.classList.remove('aktywny'));
+      btn.classList.add('aktywny');
+    };
+  </script>
+</body>
+
+</html>

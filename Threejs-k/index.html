@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Three.js - pionek</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #1a1a2e;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Render
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // Scena
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.Fog(0x1a1a2e, 18, 40);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(5, 4, 7);
+    camera.lookAt(0, 2, 0);
+
+    // Kontrolki
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 2, 0);
+    controls.minDistance = 2;
+    controls.maxDistance = 20;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.update();
+
+    // Światło
+    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xfff4e0, 2.2);
+    sun.position.set(6, 10, 8);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 40;
+    sun.shadow.camera.left = -6;
+    sun.shadow.camera.right = 6;
+    sun.shadow.camera.top = 10;
+    sun.shadow.camera.bottom = -2;
+    scene.add(sun);
+
+    const fill = new THREE.DirectionalLight(0x8090ff, 0.6);
+    fill.position.set(-5, 3, -4);
+    scene.add(fill);
+
+    // Podłoga
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(4, 64),
+      new THREE.MeshStandardMaterial({ color: 0x0d0d1a, roughness: 0.9, metalness: 0.1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Material 
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.45,
+      metalness: 0.08,
+    });
+
+    // Profile points 
+    const profilePoints = [
+      new THREE.Vector2(0.00, 0.000),
+      new THREE.Vector2(1.15, 0.000),
+      new THREE.Vector2(1.18, 0.080),
+      new THREE.Vector2(1.15, 0.160),
+      new THREE.Vector2(1.02, 0.290),
+      new THREE.Vector2(0.86, 0.440),
+      new THREE.Vector2(0.70, 0.600),
+      new THREE.Vector2(0.56, 0.770),
+      new THREE.Vector2(0.46, 0.950),
+      new THREE.Vector2(0.41, 1.130),
+      new THREE.Vector2(0.39, 1.500),
+      new THREE.Vector2(0.37, 2.000),
+      new THREE.Vector2(0.37, 2.420),
+      new THREE.Vector2(0.39, 2.580),
+      new THREE.Vector2(0.50, 2.760),
+      new THREE.Vector2(0.63, 2.940),
+      new THREE.Vector2(0.69, 3.110),
+      new THREE.Vector2(0.67, 3.280),
+      new THREE.Vector2(0.57, 3.430),
+      new THREE.Vector2(0.44, 3.540),
+      new THREE.Vector2(0.28, 3.620),
+      new THREE.Vector2(0.21, 3.680),
+      new THREE.Vector2(0.20, 3.740),
+      new THREE.Vector2(0.00, 3.740),
+    ];
+
+    // Body 
+    const latheGeo = new THREE.LatheGeometry(profilePoints, 64);
+    const latheMesh = new THREE.Mesh(latheGeo, woodMat);
+    latheMesh.castShadow = true;
+    latheMesh.receiveShadow = true;
+    scene.add(latheMesh);
+
+    // Czubek 
+    const orbGeo = new THREE.SphereGeometry(0.21, 24, 24);
+    const orbMesh = new THREE.Mesh(orbGeo, woodMat);
+    orbMesh.position.set(0, 3.74 + 0.21, 0);
+    orbMesh.castShadow = true;
+    scene.add(orbMesh);
+
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Render loop
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+
+</html>
